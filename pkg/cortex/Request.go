@@ -9,7 +9,7 @@ type Request struct {
 
 func GetDefaultInfoRequest() Request {
 	return Request{
-		ID:      1,
+		ID:      0,
 		JsonRPC: "2.0",
 		Method:  "getCortexInfo",
 		Params:  nil,
