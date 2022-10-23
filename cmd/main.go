@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"golang.org/x/net/websocket"
 
@@ -39,7 +40,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	_, err = apiCall[cortex.Response](ws, cortex.Request{
+	headsetResp, err := apiCall[cortex.ResponseSlice](ws, cortex.Request{
 		ID:      2,
 		JsonRPC: "2.0",
 		Method:  "queryHeadsets",
@@ -48,6 +49,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	headsetID := headsetResp.Result[0].(map[string]interface{})["id"].(string)
 
 	resp, err := apiCall[cortex.Response](ws, cortex.Request{
 		ID:      3,
@@ -56,6 +58,7 @@ func main() {
 		Params: cortex.AuthParams{
 			ClientID:     os.Getenv("CLIENT_ID"),
 			ClientSecret: os.Getenv("CLIENT_SECRET"),
+			Debit:        1,
 		},
 	})
 	if err != nil {
@@ -63,20 +66,80 @@ func main() {
 	}
 
 	cortexToken := resp.Result.(map[string]interface{})["cortexToken"].(string)
-	_, err = apiCall[cortex.Response](ws, cortex.Request{
+	resp, err = apiCall[cortex.Response](ws, cortex.Request{
 		ID:      4,
 		JsonRPC: "2.0",
 		Method:  "createSession",
-		Params: cortex.SessionParams{
+		Params: cortex.CreateSessionParams{
 			CortexToken: cortexToken,
-			Headset:     "EPOCX-E2020839",
 			Status:      "open",
+			Headset:     headsetID,
+		},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	sessionID := resp.Result.(map[string]interface{})["id"].(string)
+
+	defer func() {
+		_, err = apiCall[cortex.Response](ws, cortex.Request{
+			ID:      5,
+			JsonRPC: "2.0",
+			Method:  "updateSession",
+			Params: cortex.UpdateSessionParams{
+				CortexToken: cortexToken,
+				Session:     sessionID,
+				Status:      "close",
+			},
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	_, err = apiCall[cortex.Response](ws, cortex.Request{
+		ID:      6,
+		JsonRPC: "2.0",
+		Method:  "subscribe",
+		Params: cortex.SubscribeParams{
+			CortexToken: cortexToken,
+			Session:     sessionID,
+			Streams:     []string{"met", "com"},
 		},
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	defer func() {
+		_, err = apiCall[cortex.Response](ws, cortex.Request{
+			ID:      7,
+			JsonRPC: "2.0",
+			Method:  "unsubscribe",
+			Params: cortex.SubscribeParams{
+				CortexToken: cortexToken,
+				Session:     sessionID,
+				Streams:     []string{"met", "com"},
+			},
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	go func() {
+		for {
+			var msg = make([]byte, 2048)
+			var n int
+			if n, err = ws.Read(msg); err != nil {
+				log.Println("Error reading:", err)
+				return
+			}
+
+			fmt.Printf("Received: %s.\n", msg[:n])
+		}
+	}()
+	time.Sleep(time.Second * 10)
 }
 
 func apiCall[T any](ws *websocket.Conn, request cortex.Request) (*T, error) {
