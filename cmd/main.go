@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"golang.org/x/net/websocket"
 
@@ -14,17 +13,20 @@ import (
 
 func main() {
 	println("Welcome to EEG with Golang!")
+	defer println("Goodbye!")
 
 	origin := "http://localhost/"
 	url := "wss://localhost:6868"
 	ws, err := websocket.Dial(url, "", origin)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 
 	_, err = apiCall[cortex.Response](ws, cortex.GetDefaultInfoRequest())
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 
 	_, err = apiCall[cortex.Response](ws, cortex.Request{
@@ -37,7 +39,8 @@ func main() {
 		},
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 
 	headsetResp, err := apiCall[cortex.ResponseSlice](ws, cortex.Request{
@@ -47,7 +50,8 @@ func main() {
 		Params:  nil,
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 	headsetID := headsetResp.Result[0].(map[string]interface{})["id"].(string)
 
@@ -62,12 +66,43 @@ func main() {
 		},
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 
 	cortexToken := resp.Result.(map[string]interface{})["cortexToken"].(string)
-	resp, err = apiCall[cortex.Response](ws, cortex.Request{
+	_, err = apiCall[cortex.Response](ws, cortex.Request{
 		ID:      4,
+		JsonRPC: "2.0",
+		Method:  "setupProfile",
+		Params: cortex.SetupProfileParams{
+			CortexToken: cortexToken,
+			Headset:     headsetID,
+			Profile:     os.Getenv("PROFILE_NAME"),
+			Status:      "load",
+		},
+	})
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	_, err = apiCall[cortex.Response](ws, cortex.Request{
+		ID:      5,
+		JsonRPC: "2.0",
+		Method:  "getCurrentProfile",
+		Params: cortex.GetProfileParams{
+			CortexToken: cortexToken,
+			Headset:     headsetID,
+		},
+	})
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	resp, err = apiCall[cortex.Response](ws, cortex.Request{
+		ID:      6,
 		JsonRPC: "2.0",
 		Method:  "createSession",
 		Params: cortex.CreateSessionParams{
@@ -77,13 +112,14 @@ func main() {
 		},
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 	sessionID := resp.Result.(map[string]interface{})["id"].(string)
 
 	defer func() {
 		_, err = apiCall[cortex.Response](ws, cortex.Request{
-			ID:      5,
+			ID:      7,
 			JsonRPC: "2.0",
 			Method:  "updateSession",
 			Params: cortex.UpdateSessionParams{
@@ -93,53 +129,139 @@ func main() {
 			},
 		})
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
+			return
 		}
 	}()
 
 	_, err = apiCall[cortex.Response](ws, cortex.Request{
-		ID:      6,
+		ID:      8,
 		JsonRPC: "2.0",
 		Method:  "subscribe",
 		Params: cortex.SubscribeParams{
 			CortexToken: cortexToken,
 			Session:     sessionID,
-			Streams:     []string{"met", "com"},
+			Streams:     []string{"sys"},
 		},
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 
 	defer func() {
 		_, err = apiCall[cortex.Response](ws, cortex.Request{
-			ID:      7,
+			ID:      9,
 			JsonRPC: "2.0",
 			Method:  "unsubscribe",
 			Params: cortex.SubscribeParams{
 				CortexToken: cortexToken,
 				Session:     sessionID,
-				Streams:     []string{"met", "com"},
+				Streams:     []string{"sys"},
 			},
 		})
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 	}()
 
-	go func() {
-		for {
-			var msg = make([]byte, 2048)
-			var n int
-			if n, err = ws.Read(msg); err != nil {
-				log.Println("Error reading:", err)
-				return
-			}
+	_, err = apiCall[cortex.Response](ws, cortex.Request{
+		ID:      10,
+		JsonRPC: "2.0",
+		Method:  "training",
+		Params: cortex.TrainingParams{
+			CortexToken: cortexToken,
+			Session:     sessionID,
+			Detection:   "mentalCommand",
+			Status:      "start",
+			Action:      "push",
+		},
+	})
+	if err != nil {
+		log.Println(err)
+		return
+	}
 
-			fmt.Printf("Received: %s.\n", msg[:n])
-		}
-	}()
-	time.Sleep(time.Second * 10)
+	// training started
+	receive(ws)
+	// training ended
+	receive(ws)
+
+	_, err = apiCall[cortex.Response](ws, cortex.Request{
+		ID:      11,
+		JsonRPC: "2.0",
+		Method:  "training",
+		Params: cortex.TrainingParams{
+			CortexToken: cortexToken,
+			Session:     sessionID,
+			Detection:   "mentalCommand",
+			Status:      "accept",
+			Action:      "push",
+		},
+	})
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	receive(ws)
+
+	_, err = apiCall[cortex.Response](ws, cortex.Request{
+		ID:      12,
+		JsonRPC: "2.0",
+		Method:  "setupProfile",
+		Params: cortex.SetupProfileParams{
+			CortexToken: cortexToken,
+			Headset:     headsetID,
+			Profile:     os.Getenv("PROFILE_NAME"),
+			Status:      "save",
+		},
+	})
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	// _, err = apiCall[cortex.Response](ws, cortex.Request{
+	// 	ID:      8,
+	// 	JsonRPC: "2.0",
+	// 	Method:  "subscribe",
+	// 	Params: cortex.SubscribeParams{
+	// 		CortexToken: cortexToken,
+	// 		Session:     sessionID,
+	// 		Streams:     []string{"met", "com"},
+	// 	},
+	// })
+	// if err != nil {
+	// 	log.Println(err)
+	// 	return
+	// }
+
+	// defer func() {
+	// 	_, err = apiCall[cortex.Response](ws, cortex.Request{
+	// 		ID:      9,
+	// 		JsonRPC: "2.0",
+	// 		Method:  "unsubscribe",
+	// 		Params: cortex.SubscribeParams{
+	// 			CortexToken: cortexToken,
+	// 			Session:     sessionID,
+	// 			Streams:     []string{"met", "com"},
+	// 		},
+	// 	})
+	// 	if err != nil {
+	// 		log.Println(err)
+	// 	}
+	// }()
+
+	// for i := 0; i < 10; i++ {
+	// 	var msg = make([]byte, 2048)
+	// 	var n int
+	// 	if n, err = ws.Read(msg); err != nil {
+	// 		log.Println("Error reading:", err)
+	// 		return
+	// 	}
+
+	// 	fmt.Printf("Received: %s.\n", msg[:n])
+	// }
 }
 
 func apiCall[T any](ws *websocket.Conn, request cortex.Request) (*T, error) {
@@ -165,4 +287,16 @@ func apiCall[T any](ws *websocket.Conn, request cortex.Request) (*T, error) {
 	}
 
 	return result, nil
+}
+
+func receive(ws *websocket.Conn) error {
+	var msg = make([]byte, 2048)
+	var n int
+	var err error
+	if n, err = ws.Read(msg); err != nil {
+		return err
+	}
+
+	fmt.Printf("Received: %s.\n", msg[:n])
+	return nil
 }
