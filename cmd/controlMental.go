@@ -28,11 +28,9 @@ func controlMental(ws *websocket.Conn, cortexToken, sessionID string) error {
 			return err
 		}
 
-		for i, action := range data.Com {
-			if i%2 == 0 {
-				log.Printf("Action: %s\n", action)
-			} else {
-				log.Printf("Power: %f\n", action)
+		for i := range data.Com {
+			if i+1 < len(data.Com) {
+				log.Printf("Action: %s\t Power: %f\n", data.Com[i], data.Com[i+1])
 			}
 		}
 	}
