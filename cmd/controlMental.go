@@ -27,7 +27,7 @@ func controlMental(ws *websocket.Conn, cortexToken, sessionID string) error {
 
 	client := http.Client{}
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 500; i++ {
 		data, err := receive[cortex.DataSample](ws)
 		if err != nil {
 			return err
@@ -41,12 +41,12 @@ func controlMental(ws *websocket.Conn, cortexToken, sessionID string) error {
 					fmt.Println("Error: ", err)
 					return err
 				}
-				if data.Com[i] == "lift" && s > 0.5 {
+				if data.Com[i] == "lift" && s > 0.3 {
 					fmt.Println("Fireplace!")
-					httpGet(&client, os.Getenv("IOT_URL")+"/update", map[string]string{"state": "0"})
-				} else if data.Com[i] == "push" && s > 0.5 {
-					fmt.Println("Snow!")
 					httpGet(&client, os.Getenv("IOT_URL")+"/update", map[string]string{"state": "1"})
+				} else if data.Com[i] == "push" && s > 0.3 {
+					fmt.Println("Snow!")
+					httpGet(&client, os.Getenv("IOT_URL")+"/update", map[string]string{"state": "0"})
 				}
 			}
 		}
