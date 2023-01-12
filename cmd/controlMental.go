@@ -25,6 +25,12 @@ func controlMental(ws *websocket.Conn, cortexToken, sessionID string) error {
 		return err
 	}
 
+	// f, err := os.Create("data_" + os.Getenv("PROFILE_NAME") + ".txt")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer f.Close()
+
 	client := http.Client{}
 
 	for i := 0; i < 500; i++ {
@@ -35,7 +41,13 @@ func controlMental(ws *websocket.Conn, cortexToken, sessionID string) error {
 
 		for i := range data.Com {
 			if i+1 < len(data.Com) {
-				fmt.Printf("Action: %s\t Power: %f\n", data.Com[i], data.Com[i+1])
+				action := fmt.Sprintf("Action: %s\t Power: %f\n", data.Com[i], data.Com[i+1])
+				fmt.Print(action)
+				// _, err := f.WriteString(action)
+				// if err != nil {
+				// 	log.Fatal(err)
+				// }
+
 				s := 0.0
 				if s, err = strconv.ParseFloat(fmt.Sprintf("%f", data.Com[i+1]), 32); err != nil {
 					fmt.Println("Error: ", err)
