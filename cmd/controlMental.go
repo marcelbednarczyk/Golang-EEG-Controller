@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/marcelbednarczyk/Golang-EEG-Controller/pkg/cortex"
 	"golang.org/x/net/websocket"
@@ -31,9 +32,11 @@ func controlMental(ws *websocket.Conn, cortexToken, sessionID string) error {
 	// }
 	// defer f.Close()
 
-	client := http.Client{}
+	client := http.Client{
+		Timeout: time.Second,
+	}
 
-	for i := 0; i < 500; i++ {
+	for i := 0; i < 200; i++ {
 		data, err := receive[cortex.DataSample](ws)
 		if err != nil {
 			return err
