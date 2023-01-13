@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -26,11 +27,11 @@ func controlMental(ws *websocket.Conn, cortexToken, sessionID string) error {
 		return err
 	}
 
-	// f, err := os.Create("data_" + os.Getenv("PROFILE_NAME") + ".txt")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer f.Close()
+	f, err := os.Create("data_" + os.Getenv("PROFILE_NAME") + ".txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
 
 	client := http.Client{
 		Timeout: time.Second,
@@ -46,10 +47,10 @@ func controlMental(ws *websocket.Conn, cortexToken, sessionID string) error {
 			if i+1 < len(data.Com) {
 				action := fmt.Sprintf("Action: %s\t Power: %f\n", data.Com[i], data.Com[i+1])
 				fmt.Print(action)
-				// _, err := f.WriteString(action)
-				// if err != nil {
-				// 	log.Fatal(err)
-				// }
+				_, err := f.WriteString(action)
+				if err != nil {
+					log.Fatal(err)
+				}
 
 				s := 0.0
 				if s, err = strconv.ParseFloat(fmt.Sprintf("%f", data.Com[i+1]), 32); err != nil {
