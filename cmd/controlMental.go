@@ -32,6 +32,22 @@ func controlMental(ws *websocket.Conn, cortexToken, sessionID string) error {
 		return err
 	}
 
+	defer func() {
+		_, err = apiCall[cortex.Response](ws, cortex.Request{
+			ID:      9,
+			JsonRPC: "2.0",
+			Method:  "unsubscribe",
+			Params: cortex.SubscribeParams{
+				CortexToken: cortexToken,
+				Session:     sessionID,
+				Streams:     []string{"com"},
+			},
+		})
+		if err != nil {
+			fmt.Println(err)
+		}
+	}()
+
 	f, err := os.Create("data_" + os.Getenv("PROFILE_NAME") + ".txt")
 	if err != nil {
 		log.Fatal(err)
@@ -71,20 +87,6 @@ func controlMental(ws *websocket.Conn, cortexToken, sessionID string) error {
 				}
 			}
 		}
-	}
-
-	_, err = apiCall[cortex.Response](ws, cortex.Request{
-		ID:      9,
-		JsonRPC: "2.0",
-		Method:  "unsubscribe",
-		Params: cortex.SubscribeParams{
-			CortexToken: cortexToken,
-			Session:     sessionID,
-			Streams:     []string{"com"},
-		},
-	})
-	if err != nil {
-		fmt.Println(err)
 	}
 
 	return nil
