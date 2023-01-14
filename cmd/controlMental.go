@@ -12,6 +12,11 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+const (
+	LIFT_THRESHOLD = 0.5
+	PUSH_THRESHOLD = 0.5
+)
+
 func controlMental(ws *websocket.Conn, cortexToken, sessionID string) error {
 	_, err := apiCall[cortex.Response](ws, cortex.Request{
 		ID:      8,
@@ -57,12 +62,12 @@ func controlMental(ws *websocket.Conn, cortexToken, sessionID string) error {
 					fmt.Println("Error: ", err)
 					return err
 				}
-				if data.Com[i] == "lift" && s > 0.3 {
+				if data.Com[i] == "lift" && s > LIFT_THRESHOLD {
 					fmt.Println("Fireplace!")
-					go httpGet(&client, os.Getenv("IOT_URL")+"/update", map[string]string{"state": "0"})
-				} else if data.Com[i] == "push" && s > 0.3 {
+					go httpReq(&client, os.Getenv("IOT_URL")+"/update", map[string]string{"state": "0"})
+				} else if data.Com[i] == "push" && s > PUSH_THRESHOLD {
 					fmt.Println("Snow!")
-					go httpGet(&client, os.Getenv("IOT_URL")+"/update", map[string]string{"state": "1"})
+					go httpReq(&client, os.Getenv("IOT_URL")+"/update", map[string]string{"state": "1"})
 				}
 			}
 		}

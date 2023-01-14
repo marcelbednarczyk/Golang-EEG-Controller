@@ -8,7 +8,7 @@ import (
 // for control over HTTP client headers,
 // redirect policy, and other settings,
 // A Client is an HTTP client
-func httpGet(client *http.Client, url string, params map[string]string) (string, error) {
+func httpReq(client *http.Client, url string, params map[string]string) (string, error) {
 	// Create a new request using http
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
