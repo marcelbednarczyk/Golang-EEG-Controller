@@ -36,5 +36,4 @@ func httpGet(client *http.Client, url string, params map[string]string) (string,
 	}
 
 	return string(body), nil
-
 }
