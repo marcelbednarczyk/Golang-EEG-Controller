@@ -27,7 +27,6 @@ func receive[T any](ws *websocket.Conn) (*T, error) {
 		return nil, err
 	}
 
-	// fmt.Printf("Received: %s.\n", msg[:n])
 	var result *T
 	if err = json.Unmarshal(msg[:n], &result); err != nil {
 		return nil, err
